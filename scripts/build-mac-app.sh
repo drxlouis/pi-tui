@@ -6,12 +6,13 @@ set -euo pipefail
 APP_NAME="PiTUI"
 BUNDLE_ID="com.drxlouis.pitui"
 VERSION="1.0.0"
-X64_MODULE_VERSION="0.3.4"
+OPENTUI_VERSION="0.3.4"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
 APP_DIR="$DIST_DIR/$APP_NAME.app"
-X64_MODULE_DIR="$ROOT_DIR/node_modules/@opentui/core-darwin-x64"
+
+source "$ROOT_DIR/scripts/lib/vendor-native.sh"
 
 echo "==> Cleaning dist/"
 rm -rf "$DIST_DIR"
@@ -21,28 +22,11 @@ echo "==> Compiling arm64 binary"
 bun build --compile --target=bun-darwin-arm64 \
   --outfile "$DIST_DIR/pi-tui-arm64" "$ROOT_DIR/src/index.ts"
 
-# @opentui/core's native module is platform-specific and only installs for the machine you're
-# building on — bun-darwin-x64 isn't present on an Apple Silicon dev machine by default, so it's
-# fetched here just long enough to cross-compile, then removed again.
-CLEANED_UP_X64_MODULE=0
-if [ ! -d "$X64_MODULE_DIR" ]; then
-  echo "==> Fetching @opentui/core-darwin-x64 (needed only for cross-compiling)"
-  TMP_DIR="$(mktemp -d)"
-  curl -sL "https://registry.npmjs.org/@opentui/core-darwin-x64/-/core-darwin-x64-${X64_MODULE_VERSION}.tgz" \
-    | tar -xz -C "$TMP_DIR"
-  mkdir -p "$X64_MODULE_DIR"
-  cp -R "$TMP_DIR/package/." "$X64_MODULE_DIR/"
-  rm -rf "$TMP_DIR"
-  CLEANED_UP_X64_MODULE=1
-fi
-
 echo "==> Compiling x64 binary"
+vendor_native_module "core-darwin-x64"
 bun build --compile --target=bun-darwin-x64 \
   --outfile "$DIST_DIR/pi-tui-x64" "$ROOT_DIR/src/index.ts"
-
-if [ "$CLEANED_UP_X64_MODULE" = "1" ]; then
-  rm -rf "$X64_MODULE_DIR"
-fi
+[ "$VENDOR_CLEANUP" = "1" ] && rm -rf "$VENDOR_DIR"
 
 echo "==> Combining into a universal binary"
 lipo -create -output "$DIST_DIR/pi-tui" "$DIST_DIR/pi-tui-arm64" "$DIST_DIR/pi-tui-x64"

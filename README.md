@@ -49,6 +49,26 @@ Since the app isn't notarized by Apple, macOS will flag it as being from an "uni
 developer" the first time it's opened after downloading. To run it anyway: right-click the app →
 **Open** → **Open** again in the dialog that appears. This is only needed once.
 
+## Linux (including Raspberry Pi)
+
+```bash
+bash scripts/build-linux.sh
+```
+
+Produces `dist/pi-tui-<version>-linux-arm64.tar.gz` (Raspberry Pi OS 64-bit and other ARM64
+Linux) and `dist/pi-tui-<version>-linux-x64.tar.gz` (regular 64-bit Linux PCs). Each tarball is
+self-contained — extract it and run:
+
+```bash
+./pi-tui                       # run directly in your current terminal
+./run-in-terminal.sh           # open in a new terminal window, for double-clicking
+./install-desktop-entry.sh     # add a PiTUI entry to your applications menu
+./install-desktop-entry.sh --autostart   # ...and launch it automatically on login (kiosk setups)
+```
+
+Requires a 64-bit OS (bun doesn't support 32-bit ARM, so older Pi Zero/2 boards on the 32-bit
+image aren't supported — use Raspberry Pi OS 64-bit).
+
 ## Configuration
 
 All personal settings live in `.env` (gitignored — never committed). See `.env.example` for the
