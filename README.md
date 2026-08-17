@@ -33,6 +33,22 @@ Run it:
 bun dev
 ```
 
+## macOS app
+
+Prefer a double-clickable app over the command line? Build one:
+
+```bash
+bash scripts/build-mac-app.sh
+```
+
+This produces `dist/PiTUI.app` (universal binary, arm64 + x64) and a zipped
+`dist/PiTUI-<version>-macOS.zip` ready to share. Double-clicking the app opens a Terminal window
+running the dashboard.
+
+Since the app isn't notarized by Apple, macOS will flag it as being from an "unidentified
+developer" the first time it's opened after downloading. To run it anyway: right-click the app →
+**Open** → **Open** again in the dialog that appears. This is only needed once.
+
 ## Configuration
 
 All personal settings live in `.env` (gitignored — never committed). See `.env.example` for the
