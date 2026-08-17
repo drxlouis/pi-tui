@@ -1,0 +1,3 @@
+- maak het touchscreen ready
+- zorg dat ik zelf panels kan draggen (2 naast elkaar)
+- als ik bij nieuws op een link duw wil ik dat deze in een readable opent rechts naast het nieuwspaneel
