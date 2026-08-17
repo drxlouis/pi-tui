@@ -44,13 +44,16 @@ build_arch() {
 
   cat > "$pkg_dir/run-in-terminal.sh" <<'WRAPPER'
 #!/bin/bash
-# Opens the dashboard in a terminal window — for double-clicking from a file manager.
-# Running the "pi-tui" binary directly works too if you're already in a terminal.
+# Opens the dashboard in a terminal window — for double-clicking from a file manager, or for
+# kiosk autostart. Running the "pi-tui" binary directly works too if you're already in a
+# terminal. If xdotool is installed, the window is pushed fullscreen shortly after opening
+# (nice for a dedicated kiosk screen); harmless no-op otherwise.
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN="$DIR/pi-tui"
 
 for term in x-terminal-emulator lxterminal gnome-terminal xfce4-terminal konsole xterm; do
   if command -v "$term" >/dev/null 2>&1; then
+    ( sleep 1; command -v xdotool >/dev/null 2>&1 && xdotool getactivewindow windowstate --add FULLSCREEN ) &
     exec "$term" -e "$BIN"
   fi
 done
@@ -85,6 +88,18 @@ if [ "\${1:-}" = "--autostart" ]; then
   mkdir -p "\$HOME/.config/autostart"
   cp "\$HOME/.local/share/applications/$APP_NAME.desktop" "\$HOME/.config/autostart/$APP_NAME.desktop"
   echo "Autostart enabled: \$HOME/.config/autostart/$APP_NAME.desktop"
+
+  # LXDE's own session manager (lxsession) doesn't reliably pick up XDG ~/.config/autostart
+  # entries in practice — its own autostart file (with the required "@" prefix, which also
+  # means "relaunch if it exits", handy for a kiosk) is the mechanism that actually works.
+  if command -v lxsession >/dev/null 2>&1; then
+    mkdir -p "\$HOME/.config/lxsession/LXDE"
+    AUTOSTART_FILE="\$HOME/.config/lxsession/LXDE/autostart"
+    touch "\$AUTOSTART_FILE"
+    sed -i "\\|\$DIR/run-in-terminal.sh|d" "\$AUTOSTART_FILE"
+    echo "@\$DIR/run-in-terminal.sh" >> "\$AUTOSTART_FILE"
+    echo "LXDE autostart enabled: \$AUTOSTART_FILE"
+  fi
 fi
 INSTALLER
   chmod +x "$pkg_dir/install-desktop-entry.sh"
@@ -101,6 +116,11 @@ Quick start:
 
 Configuration (calendar, weather city) is read from a .env file in the directory you run it
 from, or from real environment variables. See the project README for the full list.
+
+Kiosk / touchscreen setup on a fresh, minimal Debian install (no desktop environment yet)?
+See "Linux desktop environment (kiosk setup)" in the project README for the full walkthrough,
+including two easy-to-miss dependencies: xfonts-base (lxterminal needs it to even start) and
+xdotool (only needed if you want the window to open fullscreen automatically).
 README
 
   (cd "$DIST_DIR" && tar -czf "$APP_NAME-$VERSION-linux-$arch.tar.gz" "$(basename "$pkg_dir")")

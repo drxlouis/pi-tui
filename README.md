@@ -69,6 +69,74 @@ self-contained — extract it and run:
 Requires a 64-bit OS (bun doesn't support 32-bit ARM, so older Pi Zero/2 boards on the 32-bit
 image aren't supported — use Raspberry Pi OS 64-bit).
 
+### Linux desktop environment (kiosk setup)
+
+If you're on a minimal/headless Debian install (no desktop yet — you'll know because the
+touchscreen just shows a text `login:` prompt), here's the full path to a working touchscreen
+kiosk that auto-boots straight into the dashboard, fullscreen. This was worked out the hard way
+on a Raspberry Pi 5 running plain Debian 13 with a generic HDMI touchscreen — your mileage may
+vary slightly on Raspberry Pi OS or other hardware, but the gotchas below are worth checking
+either way.
+
+1. **Install a lightweight desktop.** `lxde-core` alone is *not* enough — it has no default
+   theme, wallpaper, or menu, which on some setups renders as a plain black screen with nothing
+   visible but the mouse cursor. Install `lxde-common` too:
+
+   ```bash
+   sudo apt update
+   sudo apt install --no-install-recommends xserver-xorg lightdm lxde-core lxde-common lxappearance lxterminal xfonts-base xdotool -y
+   ```
+
+   (`xfonts-base` is easy to miss and non-obvious: without it, `lxterminal` crashes on launch
+   with `No suitable files for '9x18' found!` — a missing legacy X bitmap font. `xdotool` is
+   only needed for the auto-fullscreen trick below.)
+
+2. **On a Raspberry Pi 5**, if the screen stays black even with `lxde-common` installed and
+   `Xorg`/`lightdm` show as running fine, check `sudo tail -60 /var/log/Xorg.0.log` for:
+   `Cannot run in framebuffer mode. Please specify busIDs for all framebuffer devices`. The Pi 5
+   exposes two DRM devices (`card0` = the V3D GPU core, `card1` = the actual vc4 display
+   controller) and Xorg's autodetection can pick the wrong one. Force it explicitly:
+
+   ```bash
+   sudo mkdir -p /etc/X11/xorg.conf.d
+   sudo tee /etc/X11/xorg.conf.d/10-vc4.conf > /dev/null <<'EOF'
+   Section "Device"
+       Identifier "Vc4"
+       Driver "modesetting"
+       Option "kmsdev" "/dev/dri/card1"
+   EndSection
+   EOF
+   sudo systemctl restart lightdm
+   ```
+
+3. **Auto-login** so it boots straight to the desktop without a login screen:
+
+   ```bash
+   sudo mkdir -p /etc/lightdm/lightdm.conf.d
+   sudo tee /etc/lightdm/lightdm.conf.d/50-autologin.conf > /dev/null <<'EOF'
+   [Seat:*]
+   autologin-user=YOUR_USERNAME
+   autologin-user-timeout=0
+   autologin-session=LXDE
+   EOF
+   sudo systemctl set-default graphical.target
+   ```
+
+4. **Install the app with autostart** (see the extracted tarball's own scripts):
+
+   ```bash
+   ./install-desktop-entry.sh --autostart
+   ```
+
+   This writes both an XDG `~/.config/autostart/*.desktop` entry *and* a
+   `~/.config/lxsession/LXDE/autostart` entry — in practice, `lxsession` didn't reliably pick up
+   the XDG one, so the LXDE-native file (with its required `@` prefix, which also means "relaunch
+   if it exits" — handy for a kiosk) is what actually makes autostart work.
+
+5. `reboot`. It should boot straight into a fullscreen terminal running the dashboard. If the
+   window opens but isn't fullscreen, that means `xdotool` wasn't installed before running
+   `install-desktop-entry.sh` — install it and re-run `run-in-terminal.sh` (or reboot again).
+
 ## Configuration
 
 All personal settings live in `.env` (gitignored — never committed). See `.env.example` for the
